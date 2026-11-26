@@ -29,6 +29,16 @@ O painel pede o token no topo e o salva no `localStorage`. Chamadas à API devem
 netsh advfirewall firewall add rule name="Gestor AiFace 8000" dir=in action=allow protocol=TCP localport=8000
 ```
 
+### Iniciar automaticamente ao ligar o PC
+
+Foi criado o atalho **Gestor AiFace** na pasta de Inicialização do usuário (`shell:startup`). Ele executa `autostart.ps1`, que inicia o serviço em segundo plano (sem janela de console) após o logon. O script verifica a porta 8000 e não abre uma segunda instância se o serviço já estiver rodando.
+
+Para desativar, remova o atalho da pasta `shell:startup`. Para iniciar manualmente sem console:
+
+```bat
+powershell -NoProfile -ExecutionPolicy Bypass -File autostart.ps1
+```
+
 ## Configuração
 
 ### `config/devices.json`
