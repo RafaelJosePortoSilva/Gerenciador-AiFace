@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestor de Relógios AiFace</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div>
+      <h1>Gestor de Relógios AiFace</h1>
+      <p class="sub">Inventário, leitura e configuração padronizada dos relógios de ponto</p>
+    </div>
+    <div class="top-actions">
+      <label class="token-box">Token API <input id="token" type="password" placeholder="opcional" autocomplete="off"></label>
+      <button id="btn-refresh" class="primary">Atualizar status</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-section="devices">Equipamentos</button>
+    <button class="tab" data-section="detail">Configuração</button>
+    <button class="tab" data-section="profiles">Modelos</button>
+    <button class="tab" data-section="bulk">Aplicar em lote</button>
+    <button class="tab" data-section="history">Histórico</button>
+  </nav>
+
+  <main>
+    <section id="sec-devices" class="section active">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Equipamentos cadastrados</h2>
+          <button id="btn-add-device" class="ghost">Adicionar equipamento</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th></th><th>Nome</th><th>IP</th><th>Serial</th><th>Firmware</th><th>Status</th><th>Usuários</th><th>Logs</th><th>Verificado em</th><th></th>
+            </tr></thead>
+            <tbody id="device-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="sec-detail" class="section">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Configuração do equipamento</h2>
+          <div class="row">
+            <select id="detail-device"></select>
+            <button id="btn-load-config" class="ghost">Carregar</button>
+          </div>
+        </div>
+        <div id="detail-info" class="info-grid"></div>
+
+        <div class="panel-head subhead">
+          <h3>Configurações do dispositivo</h3>
+          <div class="row wrap">
+            <button id="btn-preview" class="ghost">Prévia de todas as abas</button>
+            <button id="btn-apply-all" class="primary">Enviar todas as abas para o Dispositivo</button>
+            <input id="operator" placeholder="Operador (opcional)">
+          </div>
+        </div>
+        <div id="category-tabs" class="cat-tabs"></div>
+        <div id="detail-editor"></div>
+        <div id="detail-msg" class="msg"></div>
+
+        <div class="panel-head subhead"><h3>Salvar configuração atual como modelo</h3></div>
+        <div class="row wrap">
+          <input id="save-profile-name" placeholder="Nome do modelo">
+          <input id="save-profile-desc" placeholder="Descrição (opcional)">
+          <label><input id="save-profile-company" type="checkbox" checked> Incluir dados da empresa</label>
+          <button id="btn-save-device-profile" class="primary">Salvar como modelo</button>
+        </div>
+        <p class="hint">Lê a configuração atual do equipamento. Campos secretos não são salvos.</p>
+        <div id="save-profile-msg" class="msg"></div>
+
+        <div class="panel-head subhead"><h3>Empresa</h3></div>
+        <div id="company-editor" class="editor company"></div>
+
+        <div class="panel-head subhead">
+          <h3>Comparar com modelo</h3>
+          <div class="row">
+            <select id="diff-profile"></select>
+            <button id="btn-diff" class="ghost">Comparar</button>
+          </div>
+        </div>
+        <div id="diff-result" class="diff"></div>
+
+        <div class="panel-head subhead"><h3>Atualizar FW</h3></div>
+        <div id="firmware-box" class="firmware-box">
+          <label>Arquivo de firmware (.zip ou .pkg)
+            <input id="firmware-file" type="file" accept=".zip,.pkg">
+          </label>
+          <div class="row wrap">
+            <button id="btn-firmware-preview" class="ghost">Validar arquivo</button>
+            <button id="btn-firmware-save" class="ghost">Salvar arquivo na biblioteca</button>
+            <input id="firmware-description" placeholder="Descrição do arquivo (opcional)">
+            <button id="btn-firmware-upload" class="danger">Enviar firmware para o Dispositivo</button>
+            <input id="firmware-operator" placeholder="Operador (opcional)">
+          </div>
+          <label>Arquivo salvo na biblioteca
+            <select id="firmware-library"><option value="">— Nenhum —</option></select>
+          </label>
+          <div class="row wrap">
+            <button id="btn-firmware-library-upload" class="primary">Enviar arquivo salvo para o Dispositivo</button>
+            <button id="btn-firmware-library-delete" class="ghost">Excluir da biblioteca</button>
+          </div>
+          <div class="progress"><div id="firmware-progress-bar" class="progress-bar"></div></div>
+          <div id="firmware-progress-text" class="msg">Selecione um arquivo ou escolha um da biblioteca.</div>
+          <div id="firmware-msg" class="msg"></div>
+          <div id="firmware-library-msg" class="msg"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sec-profiles" class="section">
+      <div class="panel">
+        <div class="panel-head"><h2>Modelos de configuração</h2></div>
+        <div class="profiles-layout">
+          <div>
+            <ul id="profile-list" class="profile-list"></ul>
+            <button id="btn-new-profile" class="ghost">Novo modelo</button>
+          </div>
+          <div>
+            <label>Nome <input id="profile-name"></label>
+            <label>Descrição <input id="profile-desc"></label>
+            <label>JSON do modelo (campos + empresa)
+              <textarea id="profile-json" spellcheck="false" rows="18"></textarea>
+            </label>
+            <div class="action-bar">
+              <button id="btn-save-profile" class="primary">Salvar modelo</button>
+              <button id="btn-delete-profile" class="danger">Excluir</button>
+              <span id="profile-msg" class="msg"></span>
+            </div>
+            <p class="hint">Campos usam valores legíveis: IP em pontos, horários HH:MM, DST MM/DD. Exemplo: {"fields": {"language": 19, "serverip": "192.168.1.10"}, "company": {"companyname": "Minha Empresa"}}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sec-bulk" class="section">
+      <div class="panel">
+        <div class="panel-head"><h2>Aplicação em lote</h2></div>
+        <div class="row wrap">
+          <label>Modelo <select id="bulk-profile"></select></label>
+          <label><input id="bulk-company" type="checkbox" checked> Aplicar dados da empresa</label>
+          <input id="bulk-operator" placeholder="Operador (opcional)">
+          <button id="btn-bulk-preview" class="ghost">Prévia</button>
+          <button id="btn-bulk-apply" class="danger">Aplicar a todos</button>
+        </div>
+        <div id="bulk-result" class="diff"></div>
+      </div>
+    </section>
+
+    <section id="sec-history" class="section">
+      <div class="panel">
+        <div class="panel-head"><h2>Histórico de alterações</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Ação</th><th>Equipamento</th><th>Operador</th><th>Alterações</th></tr></thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

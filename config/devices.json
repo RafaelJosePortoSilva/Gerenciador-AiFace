@@ -1,0 +1,34 @@
+{
+  "defaults": {
+    "port": 80,
+    "scheme": "http",
+    "username": "admin",
+    "password": "123",
+    "timeout": 3.0
+  },
+  "devices": [
+    {
+      "id": "relogio-01",
+      "host": "192.168.1.38",
+      "label": "Relógio 01 - recepção",
+      "location": "Recepção",
+      "tags": [
+        "matriz"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "J Melo",
+      "host": "192.168.1.43",
+      "port": 80,
+      "scheme": "http",
+      "label": "J Melo",
+      "location": "",
+      "username": "admin",
+      "password": "123",
+      "timeout": 3.0,
+      "tags": [],
+      "enabled": true
+    }
+  ]
+}

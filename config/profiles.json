@@ -1,0 +1,40 @@
+{
+  "profiles": [
+    {
+      "name": "padrao-matriz",
+      "description": "Modelo base para os relógios da matriz: idioma pt-BR, fuso UTC-3, servidor Secullum e porta 7788.",
+      "fields": {
+        "language": 19,
+        "time_format": 0,
+        "date_format": 2,
+        "ntp_timezone": 15,
+        "use_bs": 1,
+        "use_domain_name": 1,
+        "bs_domain_name": "evo.secullum.com.br",
+        "serverport": 7788,
+        "server_response_time": 3,
+        "door_opentime": 5,
+        "reverifytime": 60,
+        "glog_warning": 1000
+      },
+      "company": {
+        "companyname": "EMPRESA MATRIZ",
+        "companyaddr": "",
+        "companycpny": ""
+      }
+    },
+    {
+      "name": "padrao-filial",
+      "description": "Modelo para filiais: mesmo padrão da matriz, sem sobrescrever o endereço do servidor.",
+      "fields": {
+        "language": 19,
+        "time_format": 0,
+        "date_format": 2,
+        "ntp_timezone": 15,
+        "door_opentime": 5,
+        "reverifytime": 60
+      },
+      "company": {}
+    }
+  ]
+}
