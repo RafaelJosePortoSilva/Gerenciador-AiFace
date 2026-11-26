@@ -39,13 +39,15 @@ Lista manual de equipamentos. `defaults` serve para senha, porta, usuário e tim
 {
   "defaults": { "port": 80, "scheme": "http", "username": "admin", "password": "123", "timeout": 3.0 },
   "devices": [
-    { "id": "relogio-01", "host": "192.168.1.38", "label": "Recepção", "location": "Matriz", "tags": ["matriz"], "enabled": true },
-    { "id": "J Melo", "host": "192.168.1.43", "label": "J Melo", "enabled": true }
+    { "id": "relogio-01", "host": "192.168.1.38", "label": "Recepção", "location": "Matriz", "tags": ["matriz"], "enabled": true, "notes": "Leitor da portaria", "archived": false },
+    { "id": "J Melo", "host": "192.168.1.43", "label": "J Melo", "enabled": true, "notes": "", "archived": false }
   ]
 }
 ```
 
-Também é possível cadastrar/editar/remover equipamentos pelo painel ou pelas rotas `/api/devices`.
+`notes` é uma observação livre exibida na aba **Equipamentos**. `archived: true` oculta o equipamento por padrão e o exclui da sondagem de status e da aplicação em lote; use **Mostrar arquivados** no painel para vê-lo e desarquivá-lo.
+
+Também é possível cadastrar/editar/remover equipamentos pelo painel ou pelas rotas `/api/devices` (botões **Obs.** e **Arquivar** na tabela).
 
 ### `config/profiles.json`
 
@@ -72,7 +74,8 @@ Edite no painel (aba **Modelos**), diretamente no arquivo ou use **Salvar como m
 6. **Biblioteca de firmware:** o botão **Salvar arquivo na biblioteca** grava o `.zip`/`.pkg` em `data/firmware/` com metadados em `data/firmware.json` (nome, tamanho, MD5, descrição e data). Depois é só escolher o arquivo salvo no painel e usar **Enviar arquivo salvo para o Dispositivo**, sem selecionar o arquivo novamente.
 7. **Atualizar FW:** aceita `.zip` ou `.pkg` (para `.pkg`, o nome precisa conter `-update-`). O arquivo é enviado em chunks de 1 MiB para `/api/firmware/upload`, com MD5 progressivo e uma última requisição vazia com o MD5 final, exatamente como a página do equipamento. O painel valida o arquivo, mostra progresso e pede confirmação. O envio aceita um arquivo local ou um `firmware_id` da biblioteca.
 8. **Aplicação padronizada:** um modelo é aplicado a um ou vários equipamentos; opcionalmente inclui os dados da empresa (`setcompanyfile`).
-9. **Segurança:** toda escrita exige `confirm: true` na API; o painel mostra uma prévia e pede confirmação. Todas as aplicações são registradas em `data/history.jsonl`.
+9. **Status, observação e arquivamento:** ao abrir o painel, e a cada 30 segundos, os equipamentos ativos são sondados; `Online` exige a assinatura AiFace, `Online (sem assinatura)` indica apenas que o IP respondeu. Use **Obs.** para anotar detalhes do relógio e **Arquivar** para ocultá-lo. Arquivados não são sondados nem entram em lote e podem ser vidos com **Mostrar arquivados**.
+10. **Segurança:** toda escrita exige `confirm: true` na API; o painel mostra uma prévia e pede confirmação. Todas as aplicações são registradas em `data/history.jsonl`.
 
 ### Rotas principais
 
@@ -81,7 +84,8 @@ Edite no painel (aba **Modelos**), diretamente no arquivo ou use **Salvar como m
 | GET | `/api/health` |healthcheck |
 | GET | `/api/meta` | campos configuráveis, campos secretos, comandos de leitura |
 | GET / POST | `/api/devices` | listar / cadastrar equipamentos |
-| POST | `/api/devices/refresh` | sondar todos os equipamentos da lista manual |
+| PUT | `/api/devices/{id}` | editar equipamento (inclui `notes` e `archived`; senha mascarada é preservada) |
+| POST | `/api/devices/refresh` | sondar equipamentos ativos (arquivados são ignorados) |
 | GET | `/api/devices/{id}` | identificação + configuração + empresa |
 | GET | `/api/devices/{id}/config` | configuração atual decodificada |
 | POST | `/api/devices/{id}/preview` | prévia de alterações (sem gravar) |
@@ -135,7 +139,7 @@ curl -X POST http://127.0.0.1:8000/api/devices/J%20Melo/firmware ^
 .venv\Scripts\python.exe tests\smoke_test.py
 ```
 
-O teste sobe um equipamento AiFace simulado e um servidor isolado em portas próprias, validando identificação, decodificação, prévia e envio de todas as abas, categorias, novos campos, empresa, modelo salvo do equipamento, lote, biblioteca de firmware, upload de firmware local e salvo (chunks, MD5 e progresso) e histórico. Não grava nos arquivos de configuração do projeto nem em equipamentos reais.
+O teste sobe um equipamento AiFace simulado e um servidor isolado em portas próprias, validando identificação, decodificação, prévia e envio de todas as abas, categorias, novos campos, empresa, modelo salvo do equipamento, lote, observação, arquivamento (fora da sondagem e do lote), desarquivamento, biblioteca de firmware, upload de firmware local e salvo (chunks, MD5 e progresso) e histórico. Não grava nos arquivos de configuração do projeto nem em equipamentos reais.
 
 Para isolar configurações/dados de outra instância, use as variáveis `WPS_CONFIG_DIR` e `WPS_DATA_DIR`.
 

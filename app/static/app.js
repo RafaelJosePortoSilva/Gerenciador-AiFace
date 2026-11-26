@@ -4,7 +4,7 @@ const MASK = "••••••••";
 const state = {
   devices: [], meta: null, profiles: [], detail: null, selected: null,
   profile: null, categories: [], activeCategory: null, sending: false,
-  firmwareTimer: null, firmwareFiles: []
+  firmwareTimer: null, firmwareFiles: [], refreshing: false, statusTimer: null
 };
 
 function $id(id) { return document.getElementById(id); }
@@ -52,57 +52,129 @@ function formatBytes(size) {
   return `${(size / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function visibleDevices() {
+  return $id("show-archived")?.checked
+    ? state.devices
+    : state.devices.filter(d => !d.archived);
+}
+
 function renderDevices(items) {
   const tbody = $id("device-rows");
   tbody.innerHTML = "";
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="10">Nenhum equipamento cadastrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11">Nenhum equipamento cadastrado.</td></tr>';
     return;
   }
   for (const d of items) {
     const s = d.status || {};
-    const status = s.signature ? badge("AiFace detectado", "ok")
-      : s.reachable ? badge("Online (sem assinatura)", "bad")
+    const status = s.signature ? badge("Online", "ok")
+      : s.reachable ? badge("Online (sem assinatura)", "warn")
       : badge("Offline", "bad");
     const row = document.createElement("tr");
     row.innerHTML = `
-      <td><input type="checkbox" class="dev-check" value="${esc(d.id)}" checked></td>
-      <td>${esc(d.label || d.id)}</td>
+      <td><input type="checkbox" class="dev-check" value="${esc(d.id)}" ${d.archived ? "disabled" : "checked"}></td>
+      <td>${esc(d.label || d.id)} ${d.archived ? badge("Arquivado") : ""}</td>
       <td><code>${esc(d.host)}</code></td>
       <td>${esc(s.sn || "—")}</td>
       <td>${esc(d.firmware || s.firmware || "—")}</td>
       <td>${status}</td>
-      <td>${d.users ?? "—"}</td>
-      <td>${d.logs ?? "—"}</td>
+      <td>${d.users ?? s.users ?? "—"}</td>
+      <td>${d.logs ?? s.logs ?? "—"}</td>
+      <td>${esc(d.notes || "—")}</td>
       <td>${s.checked_at ? new Date(s.checked_at).toLocaleString("pt-BR") : "—"}</td>
-      <td><button class="small" data-detail="${esc(d.id)}">Configurar</button></td>`;
+      <td class="row-actions">
+        <button class="small" data-detail="${esc(d.id)}">Configurar</button>
+        <button class="small" data-notes="${esc(d.id)}">Obs.</button>
+        <button class="small" data-archive="${esc(d.id)}">${d.archived ? "Desarquivar" : "Arquivar"}</button>
+      </td>`;
     tbody.appendChild(row);
   }
   tbody.querySelectorAll("[data-detail]").forEach(btn => {
     btn.addEventListener("click", () => openDevice(btn.dataset.detail));
   });
+  tbody.querySelectorAll("[data-notes]").forEach(btn => {
+    btn.addEventListener("click", () => editDeviceNotes(btn.dataset.notes));
+  });
+  tbody.querySelectorAll("[data-archive]").forEach(btn => {
+    btn.addEventListener("click", () => toggleDeviceArchive(btn.dataset.archive));
+  });
+}
+
+function renderDeviceSelect() {
+  const select = $id("detail-device");
+  const previous = select.value;
+  select.innerHTML = state.devices.map(d =>
+    `<option value="${esc(d.id)}">${esc(d.label || d.id)} (${esc(d.host)})${d.archived ? " (arquivado)" : ""}</option>`
+  ).join("");
+  if (state.devices.some(d => d.id === previous)) select.value = previous;
+}
+
+async function saveDeviceChanges(id, changes) {
+  const device = state.devices.find(d => d.id === id);
+  if (!device) { toast("Equipamento não encontrado.", true); return false; }
+  const { status, ...payload } = device;
+  try {
+    await api(`/api/devices/${encodeURIComponent(id)}`, {
+      method: "PUT", body: JSON.stringify({ ...payload, ...changes })
+    });
+    await loadDevices();
+    return true;
+  } catch (e) { toast(e.message, true); return false; }
+}
+
+function editDeviceNotes(id) {
+  const device = state.devices.find(d => d.id === id);
+  if (!device) return;
+  const button = [...document.querySelectorAll("[data-notes]")].find(b => b.dataset.notes === id);
+  const cell = button?.closest("tr")?.children[8];
+  if (!cell) return;
+  cell.innerHTML = `<textarea class="notes-editor" rows="2" placeholder="Observação sobre o relógio">${esc(device.notes || "")}</textarea>` +
+    `<div class="row"><button class="small primary" data-save-notes>Salvar</button>` +
+    `<button class="small ghost" data-cancel-notes>Cancelar</button></div>`;
+  const input = cell.querySelector("textarea");
+  input.focus();
+  cell.querySelector("[data-save-notes]").onclick = async () => {
+    if (await saveDeviceChanges(id, { notes: input.value.trim() })) toast("Observação salva.");
+  };
+  cell.querySelector("[data-cancel-notes]").onclick = () => renderDevices(visibleDevices());
+}
+
+async function toggleDeviceArchive(id) {
+  const device = state.devices.find(d => d.id === id);
+  if (!device) return;
+  const archive = !device.archived;
+  const name = device.label || id;
+  if (!confirm(`${archive ? "Arquivar" : "Desarquivar"} "${name}"?`)) return;
+  if (!await saveDeviceChanges(id, { archived: archive })) return;
+  toast(archive ? "Equipamento arquivado e oculto." : "Equipamento desarquivado.");
+  if (!archive) await refreshStatus(true);
 }
 
 async function loadDevices() {
   state.devices = await api("/api/devices");
-  renderDevices(state.devices);
-  const select = $id("detail-device");
-  select.innerHTML = state.devices.map(d => `<option value="${esc(d.id)}">${esc(d.label || d.id)} (${esc(d.host)})</option>`).join("");
-  if (state.selected && state.devices.some(d => d.id === state.selected)) select.value = state.selected;
+  renderDevices(visibleDevices());
+  renderDeviceSelect();
   renderBulkDeviceList();
 }
 
-async function refreshStatus() {
+async function refreshStatus(silent = false) {
+  if (state.refreshing) return;
+  state.refreshing = true;
   const btn = $id("btn-refresh");
-  btn.disabled = true;
-  btn.textContent = "Verificando...";
+  if (!silent) { btn.disabled = true; btn.textContent = "Verificando..."; }
   try {
-    const items = await post("/api/devices/refresh");
-    state.devices = items;
-    renderDevices(items);
-    toast("Status atualizado.");
-  } catch (e) { toast(e.message, true); }
-  finally { btn.disabled = false; btn.textContent = "Atualizar status"; }
+    state.devices = await post("/api/devices/refresh");
+    if (!document.querySelector(".notes-editor")) {
+      renderDevices(visibleDevices());
+      renderDeviceSelect();
+    }
+    if (!silent) toast("Status atualizado.");
+  } catch (e) {
+    if (!silent) toast(e.message, true);
+  } finally {
+    state.refreshing = false;
+    if (!silent) { btn.disabled = false; btn.textContent = "Atualizar status"; }
+  }
 }
 
 function renderInfo(detail) {
@@ -554,7 +626,7 @@ async function deleteProfile() {
 }
 
 function selectedDeviceIds() {
-  return [...document.querySelectorAll(".dev-check:checked")].map(x => x.value);
+  return [...document.querySelectorAll(".dev-check:checked:not(:disabled)")].map(x => x.value);
 }
 
 function renderBulkDeviceList() {
@@ -636,7 +708,8 @@ function bindEvents() {
     localStorage.setItem("aiface_token", e.target.value);
     toast("Token salvo neste navegador.");
   });
-  $id("btn-refresh").onclick = refreshStatus;
+  $id("btn-refresh").onclick = () => refreshStatus();
+  $id("show-archived").onchange = () => renderDevices(visibleDevices());
   $id("btn-add-device").onclick = showAddDevice;
   $id("btn-load-config").onclick = () => openDevice($id("detail-device").value);
   $id("btn-preview").onclick = previewAll;
@@ -667,12 +740,16 @@ async function init() {
     state.meta = await api("/api/meta");
     if (state.meta.auth_required && !token()) toast("Este servidor exige token API. Informe-o no topo.");
     [state.devices, state.profiles] = await Promise.all([api("/api/devices"), api("/api/profiles")]);
-    renderDevices(state.devices);
-    $id("detail-device").innerHTML = state.devices.map(d => `<option value="${esc(d.id)}">${esc(d.label || d.id)} (${esc(d.host)})</option>`).join("");
+    renderDevices(visibleDevices());
+    renderDeviceSelect();
     renderProfiles();
     renderBulkDeviceList();
     await loadFirmwareLibrary();
-    if (state.devices.length) await openDevice(state.devices[0].id, false);
+    const first = visibleDevices()[0];
+    if (first) await openDevice(first.id, false);
+    refreshStatus(true);
+    clearInterval(state.statusTimer);
+    state.statusTimer = setInterval(() => refreshStatus(true), 30000);
   } catch (e) { toast(e.message, true); }
 }
 

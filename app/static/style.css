@@ -42,7 +42,10 @@ button.small { padding: 4px 8px; font-size: 12px; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 12px; background: #eef2f7; color: var(--muted); }
 .badge.ok { background: #e3f6ed; color: var(--ok); }
+.badge.warn { background: #fff4d6; color: #8a5a00; }
 .badge.bad { background: #fdecea; color: var(--danger); }
+.row-actions { display: flex; gap: 4px; }
+.notes-editor { display: block; width: 260px; max-width: 100%; min-height: 48px; white-space: normal; margin-bottom: 4px; }
 .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-bottom: 18px; }
 .info-item { background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
 .info-item span { display: block; color: var(--muted); font-size: 12px; }

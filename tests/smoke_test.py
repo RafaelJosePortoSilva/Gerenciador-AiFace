@@ -197,6 +197,39 @@ def main() -> None:
             check("modelo aplicado", STATE["config"]["door_opentime"] == 9
                   and STATE["company"]["companyname"] == "Empresa Modelo")
 
+            baseline = requests.post(BASE + "/api/devices/refresh", timeout=10).json()[0]["status"]
+            current = next(d for d in requests.get(BASE + "/api/devices", timeout=10).json()
+                           if d["id"] == "mock-01")
+            payload = {k: v for k, v in current.items() if k != "status"}
+            payload["notes"] = "Porta da recepção"
+            updated = requests.put(BASE + "/api/devices/mock-01", json=payload, timeout=10).json()
+            stored = json.loads((Path(tmp) / "devices.json").read_text(encoding="utf-8"))
+            check("observação salva e senha preservada", updated.get("notes") == "Porta da recepção"
+                  and stored["devices"][0].get("notes") == "Porta da recepção"
+                  and stored["devices"][0].get("password") == "123"
+                  and "status" not in stored["devices"][0])
+
+            payload["archived"] = True
+            archived = requests.put(BASE + "/api/devices/mock-01", json=payload, timeout=10).json()
+            check("arquivamento salvo", archived.get("archived") is True)
+            time.sleep(1.1)
+            skipped = requests.post(BASE + "/api/devices/refresh", timeout=10).json()[0]["status"]
+            check("arquivado não entra na varredura",
+                  skipped.get("checked_at") == baseline.get("checked_at"),
+                  f"{baseline.get('checked_at')} -> {skipped.get('checked_at')}")
+            blocked = requests.post(BASE + "/api/bulk/apply", json={
+                "profile": "smoke", "device_ids": ["mock-01"], "confirm": False,
+            }, timeout=10)
+            check("arquivado não entra em lote", blocked.status_code == 400, str(blocked.status_code))
+
+            payload["archived"] = False
+            restored = requests.put(BASE + "/api/devices/mock-01", json=payload, timeout=10).json()
+            time.sleep(1.1)
+            probed = requests.post(BASE + "/api/devices/refresh", timeout=10).json()[0]["status"]
+            check("desarquivamento restaura sondagem", restored.get("archived") is False
+                  and probed.get("checked_at") != skipped.get("checked_at")
+                  and probed.get("signature") is True)
+
             meta = requests.get(BASE + "/api/meta", timeout=10).json()
             categories = meta["setting_categories"]
             check("categorias do dispositivo", len(categories) == 13

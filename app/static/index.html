@@ -32,12 +32,15 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Equipamentos cadastrados</h2>
-          <button id="btn-add-device" class="ghost">Adicionar equipamento</button>
+          <div class="row wrap">
+            <label><input id="show-archived" type="checkbox"> Mostrar arquivados</label>
+            <button id="btn-add-device" class="ghost">Adicionar equipamento</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th></th><th>Nome</th><th>IP</th><th>Serial</th><th>Firmware</th><th>Status</th><th>Usuários</th><th>Logs</th><th>Verificado em</th><th></th>
+              <th></th><th>Nome</th><th>IP</th><th>Serial</th><th>Firmware</th><th>Status</th><th>Usuários</th><th>Logs</th><th>Observação</th><th>Verificado em</th><th>Ações</th>
             </tr></thead>
             <tbody id="device-rows"></tbody>
           </table>

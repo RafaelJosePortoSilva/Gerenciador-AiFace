@@ -15,7 +15,9 @@
       "tags": [
         "matriz"
       ],
-      "enabled": true
+      "enabled": true,
+      "notes": "",
+      "archived": false
     },
     {
       "id": "J Melo",
@@ -28,7 +30,9 @@
       "password": "123",
       "timeout": 3.0,
       "tags": [],
-      "enabled": true
+      "enabled": true,
+      "notes": "",
+      "archived": false
     }
   ]
 }

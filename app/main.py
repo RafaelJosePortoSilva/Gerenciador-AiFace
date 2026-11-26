@@ -76,6 +76,8 @@ class DeviceInput(BaseModel):
     timeout: float = 3.0
     tags: list[str] = Field(default_factory=list)
     enabled: bool = True
+    notes: str = ""
+    archived: bool = False
 
 
 class FieldsInput(BaseModel):
@@ -194,7 +196,10 @@ def refresh_devices() -> list[dict[str, Any]]:
             }
         return str(device["id"]), status
 
-    targets = [d for d in store.list_devices() if d.get("enabled", True)]
+    targets = [
+        d for d in store.list_devices()
+        if d.get("enabled", True) and not d.get("archived", False)
+    ]
     with ThreadPoolExecutor(max_workers=8) as pool:
         futures = [pool.submit(probe, d) for d in targets]
         for future in as_completed(futures):
@@ -568,10 +573,12 @@ def delete_firmware_file(firmware_id: str, confirm: bool = False) -> dict[str, A
 def update_device(device_id: str, payload: DeviceInput) -> dict[str, Any]:
     existing = require_device(device_id)
     data = payload.model_dump(exclude_none=True)
+    current = {key: value for key, value in existing.items() if key != "status"}
     if data.get("password") == MASK:
-        data["password"] = existing.get("password")
-    data["id"] = device_id
-    return mask(store.save_device(data))
+        data["password"] = current.get("password")
+    current.update(data)
+    current["id"] = device_id
+    return mask(store.save_device(current))
 
 
 @app.delete("/api/devices/{device_id}")
@@ -622,7 +629,10 @@ def bulk_apply(payload: BulkInput) -> dict[str, Any]:
     devices = store.list_devices()
     if payload.device_ids:
         devices = [d for d in devices if d.get("id") in payload.device_ids]
-    devices = [d for d in devices if d.get("enabled", True)]
+    devices = [
+        d for d in devices
+        if d.get("enabled", True) and not d.get("archived", False)
+    ]
     if not devices:
         raise HTTPException(status_code=400, detail="Nenhum equipamento selecionado")
 
